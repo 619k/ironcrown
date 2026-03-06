@@ -163,7 +163,7 @@ export default function DashboardPage() {
         queryFn: () => api.get('/logs/punishments?limit=5&type=PERMANENT_BAN').then((r) => r.data.data),
     });
 
-    const activeWars = (wars ?? []).filter((w: { status: string }) => w.status === 'ACTIVE').length;
+    const activeWars = (Array.isArray(wars) ? wars : []).filter((w: { status: string }) => w.status === 'ACTIVE').length;
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                     onlineCount={status?.onlineCount ?? 0}
                     lastSeen={status?.lastSeen}
                 />
-                <RecentLogs logs={logs ?? []} />
+                <RecentLogs logs={Array.isArray(logs) ? logs : []} />
             </div>
         </div>
     );
