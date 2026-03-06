@@ -55,37 +55,48 @@ export interface War {
 
 export const PlayerService = {
     getAll: async () => {
-        const { data } = await api.get('/players?limit=100');
-        // Backend returns: { success: true, data: { players: [], total: ... } }
-        return data.data.players as Player[];
+        try {
+            const { data } = await api.get('/players?limit=100');
+            return (data.data.players || []) as Player[];
+        } catch { return []; }
     },
     getOnline: async () => {
-        const { data } = await api.get('/bridge/online');
-        return data.data as Player[];
+        try {
+            const { data } = await api.get('/bridge/online');
+            return (data.data || []) as Player[];
+        } catch { return []; }
     }
 };
 
 export const PunishmentService = {
     getAll: async () => {
-        const { data } = await api.get('/punishments');
-        return data.data as Punishment[];
+        try {
+            const { data } = await api.get('/punishments');
+            return (Array.isArray(data.data) ? data.data : []) as Punishment[];
+        } catch { return []; }
     }
 };
 
 export const LogService = {
     getEvents: async () => {
-        const { data } = await api.get('/logs');
-        return data.data as EventLog[];
+        try {
+            const { data } = await api.get('/logs/events?limit=50');
+            return (Array.isArray(data.data) ? data.data : []) as EventLog[];
+        } catch { return []; }
     }
 };
 
 export const RpService = {
     getKingdoms: async () => {
-        const { data } = await api.get('/kingdoms');
-        return data.data as Kingdom[];
+        try {
+            const { data } = await api.get('/kingdoms');
+            return (Array.isArray(data.data) ? data.data : []) as Kingdom[];
+        } catch { return []; }
     },
     getWars: async () => {
-        const { data } = await api.get('/wars');
-        return data.data as War[];
+        try {
+            const { data } = await api.get('/wars');
+            return (Array.isArray(data.data) ? data.data : []) as War[];
+        } catch { return []; }
     }
 };
