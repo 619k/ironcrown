@@ -26,7 +26,15 @@ app.use(helmet());
 
 // ── CORS ─────────────────────────────────────────────
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        const allowed = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'];
+        // Allow requests with no origin (like server-to-server or plugins), allowed origins, and any vercel preview URL
+        if (!origin || allowed.includes(origin) || origin.endsWith('vercel.app')) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS policy restricts access from origin: ${origin}`));
+        }
+    },
     credentials: true,
 }));
 
