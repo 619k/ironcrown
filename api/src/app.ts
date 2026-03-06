@@ -16,6 +16,7 @@ import bridgeRoutes from './routes/bridge.routes';
 import kingdomsRoutes from './routes/kingdoms.routes';
 import warsRoutes from './routes/wars.routes';
 import logsRoutes from './routes/logs.routes';
+import punishmentsRoutes from './routes/punishments.routes';
 import mapRoutes from './routes/map.routes';
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/bridge', bridgeRoutes);
 app.use('/api/kingdoms', kingdomsRoutes);
 app.use('/api/wars', warsRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/punishments', punishmentsRoutes);
 app.use('/api/map', mapRoutes);
 
 // ── 404 handler ───────────────────────────────────────

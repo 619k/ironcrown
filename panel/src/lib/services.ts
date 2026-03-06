@@ -55,8 +55,9 @@ export interface War {
 
 export const PlayerService = {
     getAll: async () => {
-        const { data } = await api.get('/players');
-        return data.data as Player[];
+        const { data } = await api.get('/players?limit=100');
+        // Backend returns: { success: true, data: { players: [], total: ... } }
+        return data.data.players as Player[];
     },
     getOnline: async () => {
         const { data } = await api.get('/bridge/online');

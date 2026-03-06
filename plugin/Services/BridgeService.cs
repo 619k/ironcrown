@@ -30,7 +30,9 @@ namespace IronCrownPlugin.Services
         {
             _config = config;
             _logger = logger;
-            _http = new HttpClient { BaseAddress = new Uri(config.ApiBaseUrl) };
+            var baseUrl = config.ApiBaseUrl;
+            if (!baseUrl.EndsWith("/")) baseUrl += "/";
+            _http = new HttpClient { BaseAddress = new Uri(baseUrl) };
             _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _http.DefaultRequestHeaders.Add("X-API-Key", config.ApiKey);
         }
@@ -60,7 +62,7 @@ namespace IronCrownPlugin.Services
         // ── Heartbeat ─────────────────────────────────────────────────────────
         public Task<bool> SendHeartbeatAsync(int onlineCount, CancellationToken token = default)
         {
-            return PostAsync("/heartbeat", new
+            return PostAsync("heartbeat", new
             {
                 serverName = _config.ServerName,
                 pluginVersion = _config.PluginVersion,
@@ -71,19 +73,19 @@ namespace IronCrownPlugin.Services
         // ── Player Sync ───────────────────────────────────────────────────────
         public Task<bool> SyncPlayersAsync(List<object> players, CancellationToken token = default)
         {
-            return PostAsync("/player-sync", new { players }, token);
+            return PostAsync("player-sync", new { players }, token);
         }
 
         // ── Inventory Sync ────────────────────────────────────────────────────
         public Task<bool> SyncInventoryAsync(string steamId, List<object> items, CancellationToken token = default)
         {
-            return PostAsync("/inventory-sync", new { steamId, items }, token);
+            return PostAsync("inventory-sync", new { steamId, items }, token);
         }
 
         // ── Plugin Event Log ─────────────────────────────────────────────────
         public Task<bool> LogEventAsync(string eventType, string steamId, string? playerName = null, object? metadata = null, CancellationToken token = default)
         {
-            return PostAsync("/event-log", new { eventType, steamId, playerName, metadata }, token);
+            return PostAsync("event-log", new { eventType, steamId, playerName, metadata }, token);
         }
 
         // ── Pending Jobs ──────────────────────────────────────────────────────
@@ -91,7 +93,7 @@ namespace IronCrownPlugin.Services
         {
             try
             {
-                var response = await _http.GetAsync("/jobs/pending", token);
+                var response = await _http.GetAsync("jobs/pending", token);
                 if (!response.IsSuccessStatusCode) return new List<JobPayload>();
                 var body = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(body);
@@ -109,7 +111,7 @@ namespace IronCrownPlugin.Services
         // ── Job Result ────────────────────────────────────────────────────────
         public Task<bool> ReportJobResultAsync(string jobId, bool success, string? result = null, string? errorMessage = null, CancellationToken token = default)
         {
-            return PostAsync($"/jobs/{jobId}/result", new { success, result, errorMessage }, token);
+            return PostAsync($"jobs/{jobId}/result", new { success, result, errorMessage }, token);
         }
 
         public void Dispose() => _http.Dispose();
