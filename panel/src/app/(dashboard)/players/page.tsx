@@ -1,158 +1,125 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
-import { Search, Users, Wifi, WifiOff, Crown, ChevronRight } from 'lucide-react';
-import { api } from '@/lib/api';
-import { timeAgo } from '@/lib/utils';
-
-interface Player {
-    id: string; steamId: string; playerName: string;
-    isOnline: boolean; lastSeen: string;
-    kingdom?: { name: string }; village?: { name: string };
-}
-
-function PlayerRow({ player, index }: { player: Player; index: number }) {
-    return (
-        <motion.tr
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.04 }}
-            className="group"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
-        >
-            <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                    <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ background: player.isOnline ? '#1ABC9C' : '#404055', boxShadow: player.isOnline ? '0 0 6px rgba(26,188,156,0.6)' : 'none' }}
-                    />
-                    <div>
-                        <div className="text-sm font-medium" style={{ color: '#F5F5F0' }}>{player.playerName}</div>
-                        <div className="text-xs font-mono" style={{ color: '#404055' }}>{player.steamId}</div>
-                    </div>
-                </div>
-            </td>
-            <td className="px-4 py-3">
-                <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold"
-                    style={player.isOnline ? { background: 'rgba(26,188,156,0.1)', color: '#1ABC9C', border: '1px solid rgba(26,188,156,0.2)' }
-                        : { background: 'rgba(64,64,85,0.2)', color: '#606070', border: '1px solid rgba(64,64,85,0.2)' }}
-                >
-                    {player.isOnline ? <Wifi size={10} /> : <WifiOff size={10} />}
-                    {player.isOnline ? 'Online' : 'Offline'}
-                </span>
-            </td>
-            <td className="px-4 py-3">
-                {player.kingdom ? (
-                    <span className="flex items-center gap-1 text-sm" style={{ color: '#D4AF37' }}>
-                        <Crown size={12} />{player.kingdom.name}
-                    </span>
-                ) : <span style={{ color: '#404055' }}>—</span>}
-            </td>
-            <td className="px-4 py-3 text-xs font-mono" style={{ color: '#606070' }}>
-                {player.isOnline ? 'Now' : timeAgo(player.lastSeen)}
-            </td>
-            <td className="px-4 py-3">
-                <Link
-                    href={`/dashboard/players/${player.id}`}
-                    className="flex items-center gap-1 text-xs transition-colors"
-                    style={{ color: '#606070' }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#D4AF37'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#606070'}
-                >
-                    View <ChevronRight size={12} />
-                </Link>
-            </td>
-        </motion.tr>
-    );
-}
+import { useEffect, useState } from 'react';
+import { PlayerService, Player } from '@/lib/services';
+import { Search, Clock, MapPin, Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function PlayersPage() {
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
 
-    const { data, isLoading } = useQuery({
-        queryKey: ['players', debouncedSearch],
-        queryFn: () => api.get(`/players?search=${debouncedSearch}&limit=50`).then((r) => r.data.data),
-        refetchInterval: 30_000,
-    });
+    useEffect(() => {
+        PlayerService.getAll()
+            .then(setPlayers)
+            .catch(console.error)
+            .finally(() => setLoading(false));
+    }, []);
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        clearTimeout((window as unknown as { _st?: ReturnType<typeof setTimeout> })._st);
-        (window as unknown as { _st?: ReturnType<typeof setTimeout> })._st = setTimeout(() => setDebouncedSearch(value), 400);
-    };
+    const filtered = players.filter((p) =>
+        p.playerName.toLowerCase().includes(search.toLowerCase()) ||
+        p.steamId.includes(search)
+    );
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
+        <div className="space-y-8 animate-in mt-4">
+            {/* Header section */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <h1 className="font-display text-2xl font-semibold" style={{ color: '#D4AF37' }}>Players</h1>
-                    <p className="text-sm mt-0.5" style={{ color: '#606070' }}>
-                        {data?.total ?? 0} registered • {data?.players?.filter((p: Player) => p.isOnline).length ?? 0} online
+                    <h1 className="text-4xl font-display font-bold tracking-tight mb-2" style={{ color: '#F5F5F0' }}>
+                        Player Network
+                    </h1>
+                    <p className="text-sm" style={{ color: '#606070' }}>
+                        Manage {players.length} connected survivors across the server.
                     </p>
+                </div>
+
+                <div className="relative max-w-sm w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} color="#606070" />
+                    <input
+                        type="text"
+                        placeholder="Search by name or Steam ID..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-transparent text-sm focus:outline-none transition-colors"
+                        style={{
+                            color: '#F5F5F0',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '4px',
+                            background: 'rgba(255,255,255,0.02)'
+                        }}
+                    />
                 </div>
             </div>
 
-            {/* Search bar */}
-            <div className="relative max-w-sm">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#606070' }} />
-                <input
-                    value={search}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    placeholder="Search by name or SteamID…"
-                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-sm outline-none"
-                    style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(212,175,55,0.1)',
-                        color: '#F5F5F0',
-                    }}
-                />
-            </div>
+            {/* Players Grid */}
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="h-32 rounded-sm animate-pulse" style={{ background: 'rgba(255,255,255,0.03)' }} />
+                    ))}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filtered.map((player, idx) => (
+                        <motion.div
+                            key={player.id}
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: idx * 0.02, duration: 0.2 }}
+                            className="p-5 rounded-sm group relative overflow-hidden flex flex-col justify-between h-[130px] transition-all hover:-translate-y-1"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(20,20,25,0.6) 0%, rgba(10,10,15,0.9) 100%)',
+                                border: '1px solid rgba(255,255,255,0.05)',
+                                backdropFilter: 'blur(10px)'
+                            }}
+                        >
+                            {/* Accent line depending on online status */}
+                            <div
+                                className="absolute left-0 top-0 bottom-0 w-[2px] transition-all duration-300"
+                                style={{
+                                    background: player.isOnline ? '#27AE60' : 'rgba(255,255,255,0.05)',
+                                    boxShadow: player.isOnline ? '0 0 10px rgba(39, 174, 96, 0.4)' : 'none'
+                                }}
+                            />
 
-            {/* Table */}
-            <div className="glass-card rounded-sm overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(212,175,55,0.08)' }}>
-                            {['Player', 'Status', 'Kingdom', 'Last Seen', ''].map((h) => (
-                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-widest" style={{ color: '#404055' }}>
-                                    {h}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <AnimatePresence mode="wait">
-                            {isLoading ? (
-                                Array.from({ length: 8 }).map((_, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                        {Array.from({ length: 5 }).map((__, j) => (
-                                            <td key={j} className="px-4 py-3">
-                                                <div className="skeleton h-4 rounded-sm" style={{ width: ['140px', '60px', '80px', '60px', '40px'][j] }} />
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))
-                            ) : data?.players?.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-16 text-center">
-                                        <Users size={32} className="mx-auto mb-3 opacity-20" style={{ color: '#606070' }} />
-                                        <p style={{ color: '#404055' }}>No players found</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                (data?.players ?? []).map((player: Player, i: number) => (
-                                    <PlayerRow key={player.id} player={player} index={i} />
-                                ))
-                            )}
-                        </AnimatePresence>
-                    </tbody>
-                </table>
-            </div>
+                            <div className="flex justify-between items-start pl-2">
+                                <div>
+                                    <div className="font-medium text-base mb-1 truncate max-w-[150px]" style={{ color: '#F5F5F0' }}>
+                                        {player.playerName}
+                                    </div>
+                                    <div className="text-xs font-mono truncate" style={{ color: '#606070' }}>
+                                        {player.steamId}
+                                    </div>
+                                </div>
+                                {player.isOnline ? (
+                                    <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded-sm" style={{ background: 'rgba(39, 174, 96, 0.1)', color: '#27AE60', border: '1px solid rgba(39, 174, 96, 0.2)' }}>
+                                        <Activity size={10} /> LIVE
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.03)', color: '#606070', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        Offline
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex gap-4 mt-auto pl-2">
+                                <div className="flex items-center gap-1.5 text-xs">
+                                    <Clock size={12} color="#606070" />
+                                    <span style={{ color: '#808090' }}>{Math.floor(player.totalPlaytime / 3600)}h play</span>
+                                </div>
+                                {player.kingdomId && (
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                        <MapPin size={12} color="#D4AF37" />
+                                        <span style={{ color: '#808090' }}>RP Active</span>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
