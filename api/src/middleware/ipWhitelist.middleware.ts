@@ -10,7 +10,7 @@ export function ipWhitelistMiddleware(
     res: Response,
     next: NextFunction,
 ): void {
-    const allowedRaw = process.env.BRIDGE_ALLOWED_IPS || '127.0.0.1,::1';
+    const allowedRaw = process.env.BRIDGE_ALLOWED_IPS || '*';
     const allowed = allowedRaw.split(',').map((ip) => ip.trim());
 
     // Get real IP, accounting for proxies
@@ -19,7 +19,7 @@ export function ipWhitelistMiddleware(
         req.socket.remoteAddress ||
         '';
 
-    if (!allowed.includes(clientIp)) {
+    if (allowedRaw !== '*' && !allowed.includes(clientIp)) {
         res.status(403).json({
             error: 'IP not whitelisted for bridge access',
             ip: clientIp,
