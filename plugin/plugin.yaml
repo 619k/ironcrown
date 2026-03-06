@@ -1,0 +1,8 @@
+id: IronCrownPlugin
+version: 1.0.0
+displayName: IronCrown Plugin
+description: >
+  IronCrown Admin Suite — Unturned Medieval RP bridge plugin.
+  Syncs players, inventory, and admin jobs with the IronCrown API.
+author: IronCrown
+homepage: https://ironcrown.local

@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>IronCrownPlugin</AssemblyName>
+    <RootNamespace>IronCrownPlugin</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>IronCrown</Authors>
+    <Nullable>enable</Nullable>
+    <LangVersion>9.0</LangVersion>
+  </PropertyGroup>
+
+  <!--
+    OpenMod packages — ExcludeAssets="runtime" means these assemblies
+    are provided by the OpenMod host at runtime; do not bundle them.
+  -->
+  <ItemGroup>
+    <PackageReference Include="OpenMod.API"      Version="0.*" ExcludeAssets="runtime" />
+    <PackageReference Include="OpenMod.Core"     Version="0.*" ExcludeAssets="runtime" />
+    <PackageReference Include="OpenMod.Unturned" Version="0.*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!--
+    Unturned game DLLs — only referenced when building WITH the server.
+    Pass -p:UnturnedDir="C:\path\to\Unturned_Headless" via CLI.
+  -->
+  <ItemGroup Condition="'$(UnturnedDir)' != ''">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(UnturnedDir)\Unturned_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SDG.NetTransport">
+      <HintPath>$(UnturnedDir)\Unturned_Data\Managed\SDG.NetTransport.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnturnedDir)\Unturned_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- System.Net.Http + JSON for .NET 4.8 — bundled in output DLL -->
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http"    Version="4.*" />
+    <PackageReference Include="System.Text.Json"   Version="6.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>

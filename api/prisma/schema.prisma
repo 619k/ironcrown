@@ -1,0 +1,388 @@
+// Prisma Schema — IronCrown Admin Suite
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+  MODERATOR
+}
+
+enum PunishmentType {
+  KICK
+  WARN
+  MUTE
+  TEMP_BAN
+  PERMANENT_BAN
+}
+
+enum JobStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  FAILED
+}
+
+enum JobType {
+  GIVE_ITEM
+  KICK
+  BAN
+  TEMP_BAN
+  UNBAN
+  CLEAR_INVENTORY
+  REMOVE_ITEM
+  WARN
+}
+
+enum PluginEventType {
+  PLAYER_JOIN
+  PLAYER_LEAVE
+  PLAYER_DEATH
+  ITEM_PICKUP
+  ITEM_DROP
+}
+
+enum WarStatus {
+  PENDING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHICAL
+}
+
+enum ItemType {
+  WEAPON
+  FOOD
+  CLOTHING
+  MEDICAL
+  TOOL
+  CRAFTING
+  STRUCTURE
+  VEHICLE
+  MISC
+}
+
+// ─── Auth & Admin ────────────────────────────────────────────────────────────
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  username     String         @unique
+  passwordHash String
+  role         AdminRole      @default(MODERATOR)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  sessions     AdminSession[]
+  actionLogs   AdminActionLog[]
+
+  @@map("users")
+}
+
+model AdminSession {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_sessions")
+}
+
+// ─── Players ─────────────────────────────────────────────────────────────────
+
+model Player {
+  id              String   @id @default(cuid())
+  steamId         String   @unique
+  playerName      String
+  isOnline        Boolean  @default(false)
+  lastSeen        DateTime @default(now())
+  firstSeen       DateTime @default(now())
+  totalPlaytime   Int      @default(0) // seconds
+  lastPositionX   Float?
+  lastPositionY   Float?
+  lastPositionZ   Float?
+  avatarUrl       String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  kingdomId       String?
+  villageId       String?
+
+  kingdom         Kingdom?                   @relation(fields: [kingdomId], references: [id])
+  village         Village?                   @relation(fields: [villageId], references: [id])
+  inventorySnapshots PlayerInventorySnapshot[]
+  punishments     Punishment[]
+  actionLogs      AdminActionLog[]
+  eventLogs       PluginEventLog[]
+  warParticipants WarParticipant[]
+
+  @@map("players")
+}
+
+// ─── Inventory ───────────────────────────────────────────────────────────────
+
+model PlayerInventorySnapshot {
+  id          String   @id @default(cuid())
+  playerId    String
+  capturedAt  DateTime @default(now())
+  isLatest    Boolean  @default(true)
+
+  player      Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  items       InventoryItem[]
+
+  @@map("player_inventory_snapshots")
+}
+
+model InventoryItem {
+  id           String  @id @default(cuid())
+  snapshotId   String
+
+  itemId       Int
+  itemGuid     String?
+  amount       Int     @default(1)
+  durability   Float   @default(100)
+  quality      Int     @default(100)
+  // Grid position
+  gridX        Int?
+  gridY        Int?
+  rotation     Int     @default(0) // 0, 90, 180, 270
+  container    String  // hotbar, backpack, clothing, storage, primary, secondary
+  // Metadata
+  attachments  Json?   // JSONB blob
+  isFlagged    Boolean @default(false) // suspicious item flag
+  flagReason   String?
+
+  snapshot     PlayerInventorySnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_items")
+}
+
+// ─── Punishments ─────────────────────────────────────────────────────────────
+
+model Punishment {
+  id           String         @id @default(cuid())
+  playerId     String
+  adminId      String
+  type         PunishmentType
+  reason       String
+  expiresAt    DateTime?      // null = permanent
+  isActive     Boolean        @default(true)
+  unbannedById String?
+  unbannedAt   DateTime?
+  evidence     String?
+  createdAt    DateTime       @default(now())
+
+  player       Player         @relation(fields: [playerId], references: [id])
+
+  @@map("punishments")
+}
+
+// ─── Admin Action Logs ────────────────────────────────────────────────────────
+
+model AdminActionLog {
+  id           String   @id @default(cuid())
+  adminId      String
+  adminName    String
+  playerId     String?
+  playerName   String?
+  actionType   String   // give_item, kick, ban, unban, warn, clear_inventory, etc.
+  actionData   Json?    // action-specific payload
+  result       String?  // success, failed, pending
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation(fields: [adminId], references: [id])
+  player       Player?  @relation(fields: [playerId], references: [id])
+
+  @@map("admin_action_logs")
+}
+
+// ─── Plugin Bridge ────────────────────────────────────────────────────────────
+
+model PluginHeartbeat {
+  id              String   @id @default(cuid())
+  serverName      String
+  pluginVersion   String
+  onlineCount     Int      @default(0)
+  pingMs          Float?
+  createdAt       DateTime @default(now())
+
+  @@map("plugin_heartbeats")
+}
+
+model BridgeJob {
+  id            String    @id @default(cuid())
+  type          JobType
+  targetSteamId String?
+  payload       Json
+  status        JobStatus @default(PENDING)
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  lastAttemptAt DateTime?
+  result        String?
+  errorMessage  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completedAt   DateTime?
+  createdByAdminId String?
+  createdByAdminName String?
+
+  @@map("bridge_jobs")
+}
+
+model PluginEventLog {
+  id          String          @id @default(cuid())
+  eventType   PluginEventType
+  steamId     String
+  playerName  String?
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+
+  player      Player?         @relation(fields: [steamId], references: [steamId])
+
+  @@map("plugin_event_logs")
+}
+
+// ─── Kingdoms & Roleplay ─────────────────────────────────────────────────────
+
+model Kingdom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  colorHex    String   @default("#D4AF37") // royal gold
+  emblem      String?
+  mapZone     Json?    // { x, y, width, height } or polygon points
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  villages    Village[]
+  players     Player[]
+  warSides    WarSide[]
+
+  @@map("kingdoms")
+}
+
+model Village {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  kingdomId   String?
+  mapZone     Json?
+  isActive    Boolean  @default(true)
+  population  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  kingdom     Kingdom? @relation(fields: [kingdomId], references: [id])
+  players     Player[]
+
+  @@map("villages")
+}
+
+model War {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  status      WarStatus @default(PENDING)
+  startTime   DateTime?
+  endTime     DateTime?
+  zone        Json?     // { x, y, radius } or polygon
+  winnerId    String?   // warSide id
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sides       WarSide[]
+
+  @@map("wars")
+}
+
+model WarSide {
+  id          String   @id @default(cuid())
+  warId       String
+  name        String
+  kingdomId   String?
+  isWinner    Boolean  @default(false)
+
+  war         War                @relation(fields: [warId], references: [id], onDelete: Cascade)
+  kingdom     Kingdom?           @relation(fields: [kingdomId], references: [id])
+  participants WarParticipant[]
+
+  @@map("war_sides")
+}
+
+model WarParticipant {
+  id          String   @id @default(cuid())
+  warSideId   String
+  playerId    String
+  role        String   @default("soldier")
+  joinedAt    DateTime @default(now())
+
+  warSide     WarSide  @relation(fields: [warSideId], references: [id], onDelete: Cascade)
+  player      Player   @relation(fields: [playerId], references: [id])
+
+  @@unique([warSideId, playerId])
+  @@map("war_participants")
+}
+
+// ─── Item Catalog ─────────────────────────────────────────────────────────────
+
+model ItemCatalog {
+  id          String      @id @default(cuid())
+  itemId      Int         @unique
+  guid        String?     @unique
+  name        String
+  description String?
+  iconPath    String?
+  rarity      ItemRarity  @default(COMMON)
+  type        ItemType    @default(MISC)
+  maxAmount   Int         @default(1)
+  isWorkshop  Boolean     @default(false)
+  workshopId  String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("item_catalog")
+}
+
+// ─── Discord Webhook Log ──────────────────────────────────────────────────────
+
+model DiscordWebhookLog {
+  id          String   @id @default(cuid())
+  eventType   String
+  payload     Json
+  status      String   @default("pending") // pending, sent, failed
+  attempt     Int      @default(1)
+  errorMsg    String?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("discord_webhook_logs")
+}
