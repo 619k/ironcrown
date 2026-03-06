@@ -14,7 +14,8 @@ function signAccess(payload: object) {
 }
 
 function signRefresh(payload: object) {
-    return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
+    const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!;
+    return jwt.sign(payload, secret, {
         expiresIn: REFRESH_EXPIRES as jwt.SignOptions['expiresIn'],
     });
 }
@@ -51,7 +52,8 @@ export async function loginUser(email: string, password: string, ip?: string, ua
 export async function refreshAccessToken(token: string) {
     let decoded: { id: string };
     try {
-        decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as { id: string };
+        const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!;
+        decoded = jwt.verify(token, secret) as { id: string };
     } catch {
         throw new AppError('Invalid refresh token', 401);
     }
