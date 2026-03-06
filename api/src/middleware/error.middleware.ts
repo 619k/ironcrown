@@ -32,7 +32,7 @@ export function errorHandler(
     }
 
     logger.error('[Unhandled Error]', err);
-    res.status(500).json({ error: 'Internal server error', debugMsg: err.message, stack: err.stack });
+    res.status(500).json({ error: 'Internal server error' });
 }
 
 // Async wrapper to avoid try/catch in every controller
