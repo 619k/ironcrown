@@ -11,7 +11,14 @@ import { sendDiscordWebhook } from '../services/discord.service';
 /** POST /api/bridge/heartbeat */
 export const heartbeat = asyncHandler(async (req: Request, res: Response) => {
     const body = HeartbeatSchema.parse(req.body);
-    const record = await prisma.pluginHeartbeat.create({ data: body });
+    const record = await prisma.pluginHeartbeat.create({
+        data: {
+            serverName: body.serverName,
+            pluginVersion: body.pluginVersion,
+            onlineCount: body.onlineCount,
+            pingMs: body.pingMs
+        }
+    });
 
     await cache.set(CACHE_KEYS.SERVER_STATUS, { ...body, lastSeen: new Date() }, 60);
     res.json({ success: true, data: record });
@@ -87,20 +94,28 @@ export const inventorySync = asyncHandler(async (req: Request, res: Response) =>
                     gridY: item.gridY,
                     rotation: item.rotation ?? 0,
                     container: item.container,
-                    attachments: item.attachments,
+                    attachments: item.attachments ? JSON.parse(JSON.stringify(item.attachments)) : null,
                 })),
             },
         },
         include: { items: true },
     });
 
-    res.json({ success: true, data: { snapshotId: snapshot.id, itemCount: snapshot.items.length } });
+    const createdItemsCount = (snapshot as any).items ? (snapshot as any).items.length : body.items.length;
+    res.json({ success: true, data: { snapshotId: snapshot.id, itemCount: createdItemsCount } });
 });
 
 /** POST /api/bridge/event-log */
 export const eventLog = asyncHandler(async (req: Request, res: Response) => {
     const body = EventLogSchema.parse(req.body);
-    const record = await prisma.pluginEventLog.create({ data: body });
+    const record = await prisma.pluginEventLog.create({
+        data: {
+            eventType: body.eventType,
+            steamId: body.steamId,
+            playerName: body.playerName,
+            metadata: body.metadata ? JSON.parse(JSON.stringify(body.metadata)) : null
+        }
+    });
 
     // Discord notification for player deaths if configured
     if (body.eventType === 'PLAYER_DEATH') {

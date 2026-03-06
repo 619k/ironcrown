@@ -18,6 +18,5 @@ if (process.env.NODE_ENV !== 'production') {
     global.__prisma = prisma;
 }
 
-prisma.$on('error', (e) => {
-    logger.error('[Prisma Error]', e);
-});
+// Remove prisma.$on('error') as it's not supported by default without additional generic types or specific logging configuration in Prisma Client
+// The standard way to log errors is configuring 'log' in the PrismaClient constructor, which we already did above.

@@ -2,7 +2,8 @@ import winston from 'winston';
 
 const { combine, timestamp, colorize, printf, errors } = winston.format;
 
-const logFormat = printf(({ level, message, timestamp: ts, stack }) => {
+const logFormat = printf((info: winston.Logform.TransformableInfo) => {
+    const { level, message, timestamp: ts, stack } = info;
     return `${ts} [${level}]: ${stack || message}`;
 });
 
