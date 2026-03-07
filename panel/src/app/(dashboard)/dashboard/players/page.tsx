@@ -2,22 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { PlayerService, Player } from '@/lib/services';
-import { Search, Clock, MapPin, Activity } from 'lucide-react';
+import { Search, Clock, MapPin, Activity, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayerDrawer } from '@/components/players/PlayerDrawer';
+import { RegisterPlayerModal } from '@/components/players/RegisterPlayerModal';
 
 export default function PlayersPage() {
     const [players, setPlayers] = useState<Player[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState<Player | null>(null);
+    const [showRegister, setShowRegister] = useState(false);
 
-    useEffect(() => {
+    const load = () => {
+        setLoading(true);
         PlayerService.getAll()
             .then(setPlayers)
             .catch(console.error)
             .finally(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(() => { load(); }, []);
 
     const filtered = players.filter((p) =>
         p.playerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -36,16 +41,25 @@ export default function PlayersPage() {
                         {players.length} survivors registered · {players.filter(p => p.isOnline).length} online
                     </p>
                 </div>
-                <div className="relative max-w-sm w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} color="#606070" />
-                    <input
-                        type="text"
-                        placeholder="Search by name or Steam ID..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-transparent text-sm focus:outline-none"
-                        style={{ color: '#F5F5F0', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', background: 'rgba(255,255,255,0.02)' }}
-                    />
+                <div className="flex items-center gap-3 flex-shrink-0">
+                    <button
+                        onClick={() => setShowRegister(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-semibold uppercase tracking-widest transition-all hover:scale-[1.02]"
+                        style={{ background: 'rgba(27,188,156,0.1)', color: '#1ABC9C', border: '1px solid rgba(27,188,156,0.25)' }}
+                    >
+                        <UserPlus size={14} /> Register Player
+                    </button>
+                    <div className="relative max-w-sm w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={16} color="#606070" />
+                        <input
+                            type="text"
+                            placeholder="Search by name or Steam ID..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-transparent text-sm focus:outline-none"
+                            style={{ color: '#F5F5F0', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', background: 'rgba(255,255,255,0.02)' }}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -130,6 +144,12 @@ export default function PlayersPage() {
             <AnimatePresence>
                 {selected && (
                     <PlayerDrawer player={selected} onClose={() => setSelected(null)} />
+                )}
+                {showRegister && (
+                    <RegisterPlayerModal
+                        onClose={() => setShowRegister(false)}
+                        onSuccess={() => { setShowRegister(false); load(); }}
+                    />
                 )}
             </AnimatePresence>
         </div>
