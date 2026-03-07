@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireModerator, requireAdmin } from '../middleware/rbac.middleware';
+import { apiKeyMiddleware } from '../middleware/apikey.middleware';
+import { asyncHandler } from '../middleware/error.middleware';
+import { prisma } from '../utils/prisma';
 import {
     listPlayers, getPlayer, getInventory, getPlayerLogsCtrl,
     giveItemCtrl, kickPlayer, banPlayer, tempBanPlayer,
@@ -8,6 +11,21 @@ import {
 } from '../controllers/players.controller';
 
 const router = Router();
+
+// ── Plugin-only: upsert player on join (no admin auth, uses API key) ───────
+router.post('/upsert', apiKeyMiddleware, asyncHandler(async (req, res) => {
+    const { steamId, playerName } = req.body as { steamId: string; playerName: string };
+    if (!steamId || !playerName) {
+        res.status(400).json({ error: 'steamId and playerName are required' });
+        return;
+    }
+    const player = await prisma.player.upsert({
+        where: { steamId },
+        create: { steamId, playerName, isOnline: true, firstSeen: new Date(), lastSeen: new Date() },
+        update: { playerName, isOnline: true, lastSeen: new Date() },
+    });
+    res.json({ success: true, data: player });
+}));
 
 // All player routes require authentication
 router.use(authMiddleware);
