@@ -12,6 +12,8 @@ export interface Player {
     totalPlaytime: number;
     kingdomId?: string;
     villageId?: string;
+    kingdom?: { id: string; name: string };
+    village?: { id: string; name: string };
 }
 
 export interface Punishment {
@@ -23,7 +25,7 @@ export interface Punishment {
     expiresAt?: string;
     isActive: boolean;
     createdAt: string;
-    player?: Player;
+    player?: Pick<Player, 'id' | 'steamId' | 'playerName'>;
 }
 
 export interface EventLog {
@@ -31,7 +33,7 @@ export interface EventLog {
     eventType: 'PLAYER_JOIN' | 'PLAYER_LEAVE' | 'PLAYER_DEATH' | 'ITEM_PICKUP' | 'ITEM_DROP';
     steamId: string;
     playerName?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     createdAt: string;
 }
 
@@ -41,6 +43,8 @@ export interface Kingdom {
     description?: string;
     colorHex: string;
     isActive: boolean;
+    _count?: { players: number };
+    villages?: { id: string; name: string }[];
 }
 
 export interface War {
@@ -49,6 +53,17 @@ export interface War {
     description?: string;
     status: 'PENDING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
     winnerId?: string;
+    attackerKingdom?: { id: string; name: string };
+    defenderKingdom?: { id: string; name: string };
+}
+
+export interface InventoryItem {
+    id: string;
+    itemId: number;
+    itemName?: string;
+    amount: number;
+    quality: number;
+    container: string;
 }
 
 // ── Services ────────────────────────────────────────────────
@@ -57,33 +72,70 @@ export const PlayerService = {
     getAll: async () => {
         try {
             const { data } = await api.get('/players?limit=100');
-            return (data.data.players || []) as Player[];
-        } catch { return []; }
+            return (Array.isArray(data.data?.players) ? data.data.players : []) as Player[];
+        } catch { return [] as Player[]; }
+    },
+    getById: async (id: string) => {
+        const { data } = await api.get(`/players/${id}`);
+        return data.data as Player & { punishments: Punishment[] };
+    },
+    getInventory: async (id: string) => {
+        try {
+            const { data } = await api.get(`/players/${id}/inventory`);
+            return data.data as { items: InventoryItem[] } | null;
+        } catch { return null; }
     },
     getOnline: async () => {
         try {
             const { data } = await api.get('/bridge/online');
-            return (data.data || []) as Player[];
-        } catch { return []; }
-    }
+            return (Array.isArray(data.data) ? data.data : []) as Player[];
+        } catch { return [] as Player[]; }
+    },
+    // ── Actions ──────────────────────────────────────────────
+    kick: async (id: string, reason: string) => {
+        const { data } = await api.post(`/players/${id}/kick`, { reason });
+        return data;
+    },
+    warn: async (id: string, reason: string) => {
+        const { data } = await api.post(`/players/${id}/warn`, { reason });
+        return data;
+    },
+    tempBan: async (id: string, reason: string, duration: number) => {
+        const { data } = await api.post(`/players/${id}/temp-ban`, { reason, duration });
+        return data;
+    },
+    permBan: async (id: string, reason: string, evidence?: string) => {
+        const { data } = await api.post(`/players/${id}/ban`, { reason, evidence });
+        return data;
+    },
+    unban: async (id: string) => {
+        const { data } = await api.post(`/players/${id}/unban`, {});
+        return data;
+    },
+    giveItem: async (id: string, itemId: number, amount: number, quality: number) => {
+        const { data } = await api.post(`/players/${id}/give-item`, { itemId, amount, quality });
+        return data;
+    },
 };
 
 export const PunishmentService = {
-    getAll: async () => {
+    getAll: async (active?: boolean) => {
         try {
-            const { data } = await api.get('/punishments');
+            const params = active !== undefined ? `?active=${active}` : '';
+            const { data } = await api.get(`/punishments${params}`);
             return (Array.isArray(data.data) ? data.data : []) as Punishment[];
-        } catch { return []; }
-    }
+        } catch { return [] as Punishment[]; }
+    },
 };
 
 export const LogService = {
-    getEvents: async () => {
+    getEvents: async (eventType?: string) => {
         try {
-            const { data } = await api.get('/logs/events?limit=50');
+            const params = eventType ? `?eventType=${eventType}&limit=50` : '?limit=50';
+            const { data } = await api.get(`/logs/events${params}`);
             return (Array.isArray(data.data) ? data.data : []) as EventLog[];
-        } catch { return []; }
-    }
+        } catch { return [] as EventLog[]; }
+    },
 };
 
 export const RpService = {
@@ -91,12 +143,12 @@ export const RpService = {
         try {
             const { data } = await api.get('/kingdoms');
             return (Array.isArray(data.data) ? data.data : []) as Kingdom[];
-        } catch { return []; }
+        } catch { return [] as Kingdom[]; }
     },
     getWars: async () => {
         try {
             const { data } = await api.get('/wars');
             return (Array.isArray(data.data) ? data.data : []) as War[];
-        } catch { return []; }
-    }
+        } catch { return [] as War[]; }
+    },
 };
